@@ -167,7 +167,7 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('maxIter', 50)
     opts.setdefault('minIter', 3)
     opts.setdefault('monotone', 1)
-    opts.setdefault('display', 0)
+    opts.setdefault('display', 'full')
     opts.setdefault('saveIterResult', 0)
     opts.setdefault('out_dir', 'IterResults')
     opts.setdefault('OP_alpha', 3)
@@ -267,6 +267,45 @@ def AlterMin(I, No, Ns, opts):
 
     if opts['mode'] == 'fourier':
         O = Ft(O)
+
+    if opts.get('display') == 'full':
+        mode = opts.get('mode', 'real')
+        Ft = opts.get('Ft', lambda x: np.fft.ifft2(np.fft.ifftshift(x)))
+    
+        if mode == 'real':
+            o = O
+        elif mode == 'fourier':
+            o = Ft(O)
+    
+        plt.figure(88, figsize=(10, 8))
+        
+        plt.subplot(2, 2, 1)
+        plt.imshow(np.abs(o), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('ampl(o)')
+    
+        plt.subplot(2, 2, 2)
+        plt.imshow(np.angle(o), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('phase(o)')
+    
+        plt.subplot(2, 2, 3)
+        plt.imshow(np.abs(P), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('ampl(P)')
+    
+        plt.subplot(2, 2, 4)
+        plt.imshow(np.angle(P) * np.abs(P), cmap='gray')  # same as MATLAB's phase(P).*abs(P)
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('phase(P)')
+    
+        plt.tight_layout()
+        plt.draw()
+        plt.pause(0.001)  # to force GUI update, useful in loops
 
     print(f"elapsed time: {time.time() - start_time:.0f} seconds")
 
