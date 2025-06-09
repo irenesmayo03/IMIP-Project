@@ -227,7 +227,7 @@ def AlterMin(I, No, Ns, opts):
             scale0 = np.zeros(r0)
 
             for p in range(r0):
-                cen[:, p] = np.array(cen0) - row(Ns[p, m, :]).astype(int)
+                cen[:, p] = np.array(cen0) + row(Ns[p, m, :]).astype(int)
                 scale0[p] = scale[p, m]
                 Psi0[:, :, p] = downsamp(O, cen[:, p]) * P * H0
                 Psi_scale[:, :, p] = np.sqrt(scale0[p]) * Psi0[:, :, p]
