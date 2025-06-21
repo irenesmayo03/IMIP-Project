@@ -190,7 +190,7 @@ def AlterMin(I, No, Ns, opts):
     pad_before_after = [(pad_y // 2, pad_y - pad_y // 2), (pad_x // 2, pad_x - pad_x // 2)]
 
     if 'O0' not in opts:
-        opts['O0'] = np.pad(Ft(np.sqrt(I[:, :, 0])), pad_before_after)
+        opts['O0'] = np.pad(F(np.sqrt(I[:, :, 0])), pad_before_after)
     if 'P0' not in opts:
         opts['P0'] = np.ones(Np, dtype=np.complex128)
 
@@ -237,22 +237,11 @@ def AlterMin(I, No, Ns, opts):
             dPsi = Psi - Psi0
 
             Omax = np.abs(O[cen0[0], cen0[1]])
+            
             if r0 == 1:
                 P2 = GDUpdate_Multiplication_rank1
 
-            O, P = P2(O, P, dPsi / H0[..., np.newaxis], Omax, cen, opts['Ps'], opts['OP_alpha'], opts['OP_beta'], opts.get('StepSize', 1))
-
-            # Position correction
-            if opts['poscalibrate'] == 'sa':
-                def poscost(ss):
-                    ss = np.round(ss).astype(int)
-                    return np.sum((np.abs(Ft(downsamp(O, ss) * P * H0))**2 - I_mea)**2)
-
-                bounds = [(cen[:, 0][0] - sp0 // 3, cen[:, 0][0] + sp0 // 3),
-                          (cen[:, 0][1] - sp0 // 3, cen[:, 0][1] + sp0 // 3)]
-                result = dual_annealing(poscost, bounds)
-                cen_correct = np.round(result.x).astype(int)
-                Ns[:, m, :] = np.array(cen0) - cen_correct.reshape(2, 1)
+            O, P = P2(O, P, dPsi, Omax, cen, opts['Ps'], opts['OP_alpha'], opts['OP_beta'], opts.get('StepSize', 1))
 
             err2 += np.sqrt(np.sum((I_mea - I_est)**2))
 
