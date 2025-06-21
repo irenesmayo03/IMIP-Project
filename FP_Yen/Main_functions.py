@@ -185,10 +185,12 @@ def AlterMin(I, No, Ns, opts):
 
     F = opts['F']
     Ft = opts['Ft']
+    pad_y = No[0] - Np[0]
+    pad_x = No[1] - Np[1]
+    pad_before_after = [(pad_y // 2, pad_y - pad_y // 2), (pad_x // 2, pad_x - pad_x // 2)]
 
     if 'O0' not in opts:
-        opts['O0'] = np.pad(Ft(np.sqrt(I[:, :, 0])) / r0,
-                            [(No[0] - Np[0]) // 2, (No[1] - Np[1]) // 2])
+        opts['O0'] = np.pad(Ft(np.sqrt(I[:, :, 0])), pad_before_after)
     if 'P0' not in opts:
         opts['P0'] = np.ones(Np, dtype=np.complex128)
 
@@ -224,13 +226,12 @@ def AlterMin(I, No, Ns, opts):
             Psi0 = np.zeros((Np[0], Np[1], r0), dtype=complex)
             Psi_scale = np.zeros_like(Psi0)
             cen = np.zeros((2, r0), dtype=int)
-            scale0 = np.zeros(r0)
 
             for p in range(r0):
                 cen[:, p] = np.array(cen0) + row(Ns[p, m, :]).astype(int)
-                scale0[p] = scale[p, m]
-                Psi0[:, :, p] = downsamp(O, cen[:, p]) * P * H0
-                Psi_scale[:, :, p] = np.sqrt(scale0[p]) * Psi0[:, :, p]
+                Psi0[:, :, p] = downsamp(O, cen[:, p]) * P
+                Psi_scale[:, :, p] = Psi0[:, :, p]
+                
 
             I_mea = I[:, :, m]
             psi0 = Ft(Psi_scale)
