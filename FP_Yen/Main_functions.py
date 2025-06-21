@@ -116,7 +116,7 @@ def GDUpdate_Multiplication_rank1(O, P, dpsi, Omax, cen, Ps, alpha, beta, StepSi
 # In[4]:
 
 
-def Proj_Fourier_v2(psi0, I, I0, c, F):
+def Proj_Fourier_v2(psi0, I, I0, F):
     """
     Projection based on intensity measurement in the Fourier domain.
     Replaces the amplitude of the Fourier transform by measured amplitude sqrt(I).
@@ -139,13 +139,13 @@ def Proj_Fourier_v2(psi0, I, I0, c, F):
 
     if psi0.ndim == 2:
         # Single LED case (r == 1)
-        psi = F(np.sqrt(I / c) * np.exp(1j * np.angle(psi0)))
+        psi = F(np.sqrt(I) * np.exp(1j * np.angle(psi0)))
     else:
         # Multiple LEDs (r > 1)
         n1, n2, r = psi0.shape
         psi = np.zeros_like(psi0, dtype=np.complex128)
         for m in range(r):
-            psi[:, :, m] = F(np.sqrt(I / c[m]) * psi0[:, :, m] / np.sqrt(I0 + eps))
+            psi[:, :, m] = F(np.sqrt(I) * psi0[:, :, m] / np.sqrt(I0 + eps))
 
     return psi
 
@@ -170,8 +170,8 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('display', 'full')
     opts.setdefault('saveIterResult', 0)
     opts.setdefault('out_dir', 'IterResults')
-    opts.setdefault('OP_alpha', 3)
-    opts.setdefault('OP_beta', 3)
+    opts.setdefault('OP_alpha', 10)
+    opts.setdefault('OP_beta', 10)
     opts.setdefault('mode', 'real')
     opts.setdefault('Ps', 1)
     opts.setdefault('iters', 10)
@@ -179,7 +179,7 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('H0', np.ones(Np))
     opts.setdefault('poscalibrate', 0)
     opts.setdefault('calbratetol', 1e-1)
-    opts.setdefault('StepSize', 0.01)
+    opts.setdefault('StepSize', 0.001)
     opts.setdefault('F', lambda x: fftshift(fft2(x)))
     opts.setdefault('Ft', lambda x: ifft2(ifftshift(x)))
 
@@ -224,19 +224,16 @@ def AlterMin(I, No, Ns, opts):
 
         for m in range(Nimg):
             Psi0 = np.zeros((Np[0], Np[1], r0), dtype=complex)
-            Psi_scale = np.zeros_like(Psi0)
             cen = np.zeros((2, r0), dtype=int)
 
             for p in range(r0):
                 cen[:, p] = np.array(cen0) + row(Ns[p, m, :]).astype(int)
                 Psi0[:, :, p] = downsamp(O, cen[:, p]) * P
-                Psi_scale[:, :, p] = Psi0[:, :, p]
-                
 
             I_mea = I[:, :, m]
-            psi0 = Ft(Psi_scale)
+            psi0 = Ft(Psi0)
             I_est = np.sum(np.abs(psi0)**2, axis=2)
-            Psi = Proj_Fourier_v2(psi0, I_mea, I_est, scale0, F)
+            Psi = Proj_Fourier_v2(psi0, I_mea, I_est, F)
             dPsi = Psi - Psi0
 
             Omax = np.abs(O[cen0[0], cen0[1]])
