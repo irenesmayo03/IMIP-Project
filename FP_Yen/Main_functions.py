@@ -156,8 +156,8 @@ def Proj_Fourier_v2(psi0, I, I0, F):
 # Main Alternating Minimization Function
 def AlterMin(I, No, Ns, opts):
     # Derived constants
-    Nmy, Nmx, Nimg = I.shape
-    Np = (Nmy, Nmx)
+    Nmx, Nmy, Nimg = I.shape
+    Np = (Nmx, Nmy)
     r0 = Ns.shape[0]
     cen0 = ((No[0]+1)//2, (No[1]+1)//2)
     row = lambda x: x.reshape(-1)
