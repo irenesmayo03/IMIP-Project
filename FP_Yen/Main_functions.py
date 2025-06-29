@@ -116,7 +116,7 @@ def GDUpdate_Multiplication_rank1(O, P, dpsi, Omax, cen, Ps, alpha, beta, StepSi
 # In[4]:
 
 
-def Proj_Fourier_v2(psi0, I, I0, c, F):
+def Proj_Fourier_v2(psi0, I, I0, F):
     """
     Projection based on intensity measurement in the Fourier domain.
     Replaces the amplitude of the Fourier transform by measured amplitude sqrt(I).
@@ -139,13 +139,13 @@ def Proj_Fourier_v2(psi0, I, I0, c, F):
 
     if psi0.ndim == 2:
         # Single LED case (r == 1)
-        psi = F(np.sqrt(I / c) * np.exp(1j * np.angle(psi0)))
+        psi = F(np.sqrt(I) * np.exp(1j * np.angle(psi0)))
     else:
         # Multiple LEDs (r > 1)
         n1, n2, r = psi0.shape
         psi = np.zeros_like(psi0, dtype=np.complex128)
         for m in range(r):
-            psi[:, :, m] = F(np.sqrt(I / c[m]) * psi0[:, :, m] / np.sqrt(I0 + eps))
+            psi[:, :, m] = F(np.sqrt(I) * psi0[:, :, m] / np.sqrt(I0 + eps))
 
     return psi
 
@@ -156,8 +156,8 @@ def Proj_Fourier_v2(psi0, I, I0, c, F):
 # Main Alternating Minimization Function
 def AlterMin(I, No, Ns, opts):
     # Derived constants
-    Nmy, Nmx, Nimg = I.shape
-    Np = (Nmy, Nmx)
+    Nmx, Nmy, Nimg = I.shape
+    Np = (Nmx, Nmy)
     r0 = Ns.shape[0]
     cen0 = ((No[0]+1)//2, (No[1]+1)//2)
     row = lambda x: x.reshape(-1)
@@ -167,11 +167,11 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('maxIter', 50)
     opts.setdefault('minIter', 3)
     opts.setdefault('monotone', 1)
-    opts.setdefault('display', 0)
+    opts.setdefault('display', 'full')
     opts.setdefault('saveIterResult', 0)
     opts.setdefault('out_dir', 'IterResults')
-    opts.setdefault('OP_alpha', 3)
-    opts.setdefault('OP_beta', 3)
+    opts.setdefault('OP_alpha', 10)
+    opts.setdefault('OP_beta', 10)
     opts.setdefault('mode', 'real')
     opts.setdefault('Ps', 1)
     opts.setdefault('iters', 10)
@@ -179,16 +179,18 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('H0', np.ones(Np))
     opts.setdefault('poscalibrate', 0)
     opts.setdefault('calbratetol', 1e-1)
-    opts.setdefault('StepSize', 0.01)
+    opts.setdefault('StepSize', 0.001)
     opts.setdefault('F', lambda x: fftshift(fft2(x)))
     opts.setdefault('Ft', lambda x: ifft2(ifftshift(x)))
 
     F = opts['F']
     Ft = opts['Ft']
+    pad_y = No[0] - Np[0]
+    pad_x = No[1] - Np[1]
+    pad_before_after = [(pad_y // 2, pad_y - pad_y // 2), (pad_x // 2, pad_x - pad_x // 2)]
 
     if 'O0' not in opts:
-        opts['O0'] = np.pad(Ft(np.sqrt(I[:, :, 0])) / r0,
-                            [(No[0] - Np[0]) // 2, (No[1] - Np[1]) // 2])
+        opts['O0'] = np.pad(F(np.sqrt(I[:, :, 0])), pad_before_after)
     if 'P0' not in opts:
         opts['P0'] = np.ones(Np, dtype=np.complex128)
 
@@ -222,39 +224,24 @@ def AlterMin(I, No, Ns, opts):
 
         for m in range(Nimg):
             Psi0 = np.zeros((Np[0], Np[1], r0), dtype=complex)
-            Psi_scale = np.zeros_like(Psi0)
             cen = np.zeros((2, r0), dtype=int)
-            scale0 = np.zeros(r0)
 
             for p in range(r0):
-                cen[:, p] = np.array(cen0) - row(Ns[p, m, :]).astype(int)
-                scale0[p] = scale[p, m]
-                Psi0[:, :, p] = downsamp(O, cen[:, p]) * P * H0
-                Psi_scale[:, :, p] = np.sqrt(scale0[p]) * Psi0[:, :, p]
+                cen[:, p] = np.array(cen0) + row(Ns[p, m, :]).astype(int)
+                Psi0[:, :, p] = downsamp(O, cen[:, p]) * P
 
             I_mea = I[:, :, m]
-            psi0 = Ft(Psi_scale)
+            psi0 = Ft(Psi0)
             I_est = np.sum(np.abs(psi0)**2, axis=2)
-            Psi = Proj_Fourier_v2(psi0, I_mea, I_est, scale0, F)
+            Psi = Proj_Fourier_v2(psi0, I_mea, I_est, F)
             dPsi = Psi - Psi0
 
             Omax = np.abs(O[cen0[0], cen0[1]])
+            
             if r0 == 1:
                 P2 = GDUpdate_Multiplication_rank1
 
-            O, P = P2(O, P, dPsi / H0[..., np.newaxis], Omax, cen, opts['Ps'], opts['OP_alpha'], opts['OP_beta'], opts.get('StepSize', 1))
-
-            # Position correction
-            if opts['poscalibrate'] == 'sa':
-                def poscost(ss):
-                    ss = np.round(ss).astype(int)
-                    return np.sum((np.abs(Ft(downsamp(O, ss) * P * H0))**2 - I_mea)**2)
-
-                bounds = [(cen[:, 0][0] - sp0 // 3, cen[:, 0][0] + sp0 // 3),
-                          (cen[:, 0][1] - sp0 // 3, cen[:, 0][1] + sp0 // 3)]
-                result = dual_annealing(poscost, bounds)
-                cen_correct = np.round(result.x).astype(int)
-                Ns[:, m, :] = np.array(cen0) - cen_correct.reshape(2, 1)
+            O, P = P2(O, P, dPsi, Omax, cen, opts['Ps'], opts['OP_alpha'], opts['OP_beta'], opts.get('StepSize', 1))
 
             err2 += np.sqrt(np.sum((I_mea - I_est)**2))
 
@@ -267,6 +254,45 @@ def AlterMin(I, No, Ns, opts):
 
     if opts['mode'] == 'fourier':
         O = Ft(O)
+
+    if opts.get('display') == 'full':
+        mode = opts.get('mode', 'real')
+        Ft = opts.get('Ft', lambda x: np.fft.ifft2(np.fft.ifftshift(x)))
+    
+        if mode == 'real':
+            o = O
+        elif mode == 'fourier':
+            o = Ft(O)
+    
+        plt.figure(88, figsize=(10, 8))
+        
+        plt.subplot(2, 2, 1)
+        plt.imshow(np.abs(o), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('ampl(o)')
+    
+        plt.subplot(2, 2, 2)
+        plt.imshow(np.angle(o), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('phase(o)')
+    
+        plt.subplot(2, 2, 3)
+        plt.imshow(np.abs(P), cmap='gray')
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('ampl(P)')
+    
+        plt.subplot(2, 2, 4)
+        plt.imshow(np.angle(P) * np.abs(P), cmap='gray')  # same as MATLAB's phase(P).*abs(P)
+        plt.axis('image')
+        plt.colorbar()
+        plt.title('phase(P)')
+    
+        plt.tight_layout()
+        plt.draw()
+        plt.pause(0.001)  # to force GUI update, useful in loops
 
     print(f"elapsed time: {time.time() - start_time:.0f} seconds")
 
