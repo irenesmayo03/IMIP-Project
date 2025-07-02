@@ -156,8 +156,8 @@ def Proj_Fourier_v2(psi0, I, I0, F):
 # Main Alternating Minimization Function
 def AlterMin(I, No, Ns, opts):
     # Derived constants
-    Nmx, Nmy, Nimg = I.shape
-    Np = (Nmx, Nmy)
+    Nmy, Nmx, Nimg = I.shape
+    Np = (Nmy, Nmx)
     r0 = Ns.shape[0]
     cen0 = ((No[0]+1)//2, (No[1]+1)//2)
     row = lambda x: x.reshape(-1)
@@ -170,8 +170,8 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('display', 'full')
     opts.setdefault('saveIterResult', 0)
     opts.setdefault('out_dir', 'IterResults')
-    opts.setdefault('OP_alpha', 10)
-    opts.setdefault('OP_beta', 10)
+    opts.setdefault('OP_alpha', 7)
+    opts.setdefault('OP_beta', 7)
     opts.setdefault('mode', 'real')
     opts.setdefault('Ps', 1)
     opts.setdefault('iters', 10)
@@ -179,7 +179,7 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('H0', np.ones(Np))
     opts.setdefault('poscalibrate', 0)
     opts.setdefault('calbratetol', 1e-1)
-    opts.setdefault('StepSize', 0.001)
+    opts.setdefault('StepSize', 0.01)
     opts.setdefault('F', lambda x: fftshift(fft2(x)))
     opts.setdefault('Ft', lambda x: ifft2(ifftshift(x)))
 
