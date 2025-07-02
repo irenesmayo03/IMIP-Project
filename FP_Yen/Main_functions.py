@@ -179,7 +179,7 @@ def AlterMin(I, No, Ns, opts):
     opts.setdefault('H0', np.ones(Np))
     opts.setdefault('poscalibrate', 0)
     opts.setdefault('calbratetol', 1e-1)
-    opts.setdefault('StepSize', 0.01)
+    opts.setdefault('StepSize', 0.001)
     opts.setdefault('F', lambda x: fftshift(fft2(x)))
     opts.setdefault('Ft', lambda x: ifft2(ifftshift(x)))
 
